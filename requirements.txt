@@ -1,4 +1,5 @@
-streamlit 
-numpy 
+streamlit
+numpy
 scikit-learn
-
+sentence-transformers
+torch

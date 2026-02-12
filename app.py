@@ -1,20 +1,27 @@
 import streamlit as st
 import numpy as np
-import pickle
-
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-# Load precomputed document embeddings (Assuming embeddings.npy and documents.txt exist)
-embeddings = np.load("embeddings.npy")
-with open("documents.txt", "r", encoding="utf-8") as f:
-    documents = f.readlines()
 
-with open("vectorizer.pkl", "rb") as f:
-    vectorizer = pickle.load(f)
-def retrieve_top_k(query_embedding, embeddings, k=10):
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
+@st.cache_data
+def load_data():
+    embeddings = np.load("embeddings.npy")
+    with open("documents.txt", "r", encoding="utf-8") as f:
+        documents = [line.strip() for line in f if line.strip()]
+    return embeddings, documents
+
+model = load_model()
+embeddings, documents = load_data()
+
+def retrieve_top_k(query, embeddings, k=10):
     """Retrieve top-k most similar documents using cosine similarity."""
-    query_vector = vectorizer.transform([query]).toarray()
+    query_vec = model.encode([query], convert_to_numpy=True, normalize_embeddings=True)
 
-    similarities = cosine_similarity(query_vector, embeddings)[0]
+    similarities = cosine_similarity(query_vec, embeddings)[0]
 
     top_k_indices = similarities.argsort()[-k:][::-1]
     return [(documents[i], similarities[i]) for i in top_k_indices]
@@ -23,12 +30,8 @@ def retrieve_top_k(query_embedding, embeddings, k=10):
 st.title("Information Retrieval using Document Embeddings")
 # Input query
 query = st.text_input("Enter your query:")
-# Load or compute query embedding (Placeholder: Replace with actual embedding model)
-def get_query_embedding(query):
-    return np.random.rand(embeddings.shape[1]) # Replace with actual embedding function
 if st.button("Search"):
-    query_embedding = get_query_embedding(query)
-    results = retrieve_top_k(query_embedding, embeddings)
+    results = retrieve_top_k(query, embeddings)
     # Display results
     st.write("### Top 10 Relevant Documents:")
     for doc, score in results:
